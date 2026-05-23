@@ -2,3 +2,4 @@ __pycache__/
 venv/
 *.pth
 GuitarSet/3371780/
+.vscode/*
