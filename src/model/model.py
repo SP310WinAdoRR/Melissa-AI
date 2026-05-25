@@ -33,6 +33,7 @@ class ChordCNN(nn.Module):
         self.bn4 = nn.BatchNorm2d(128)
 
         self.gap = nn.AdaptiveAvgPool2d(1)
+        self.dropout = nn.Dropout(0.5)
         self.fc1 = nn.Linear(128, 128)
         self.fc2 = nn.Linear(128, num_classes)
 
@@ -59,7 +60,9 @@ class ChordCNN(nn.Module):
         x = self.gap(x)
         x = torch.flatten(x, 1)
 
+        x = self.dropout(x)
         x = F.leaky_relu(self.fc1(x))
+        x = self.dropout(x)
         x = self.fc2(x)
 
         return x
