@@ -6,57 +6,54 @@ Ejecutar desde la terminal:
     ../../venv/bin/python train.py
 """
 
+import os
 import time
 import torch
 
-from config import build_model, DEVICE, BATCH_SIZE, EPOCHS
+from config import build_model, DEVICE, BATCH_SIZE, EPOCHS, SAVE_EVERY, OUTPUT_DIR
 from dataset import get_loaders
 
 
 def train():
-    # 1. Cargar datos
     print("Cargando datasets...")
     train_loader, test_loader = get_loaders(batch_size=BATCH_SIZE)
     print(f"  Train: {len(train_loader.dataset)} muestras ({len(train_loader)} batches)")
     print(f"  Test:  {len(test_loader.dataset)} muestras ({len(test_loader)} batches)")
 
-    # 2. Construir modelo, pérdida y optimizador
     model, criterion, optimizer = build_model()
+
+    checkpoint_path = os.path.join(OUTPUT_DIR, "checkpoint.pth")
+    best_path = os.path.join(OUTPUT_DIR, "mejor_modelo.pth")
+    last_path = os.path.join(OUTPUT_DIR, "ultimo_modelo.pth")
+    log_path = os.path.join(OUTPUT_DIR, "training_log.txt")
+
+    with open(log_path, 'w', encoding='utf-8') as f:
+        f.write("epoca,train_loss,train_acc,test_acc,tiempo_seg,mejor\n")
 
     best_acc = 0.0
 
-    # 3. Bucle de épocas
     print(f"\nIniciando entrenamiento por {EPOCHS} épocas en {DEVICE}...\n")
 
     for epoch in range(EPOCHS):
         t0 = time.time()
 
-        # --- FASE DE ENTRENAMIENTO ---
+        # Fase de entrenamiento
         model.train()
         running_loss = 0.0
         correct = 0
         total = 0
 
         for spec, aux, label in train_loader:
-            # Enviar los tensores al dispositivo (GPU o CPU)
             spec = spec.to(DEVICE)
             aux = aux.to(DEVICE)
             label = label.to(DEVICE)
 
-            # Limpiar gradientes de la iteración anterior
             optimizer.zero_grad()
-
-            # Propagación hacia adelante
             outputs = model(spec, aux)
-
-            # Calcular el error
             loss = criterion(outputs, label)
-
-            # Retropropagación y actualización de pesos
             loss.backward()
             optimizer.step()
 
-            # Acumular métricas
             running_loss += loss.item()
             _, predicted = torch.max(outputs, 1)
             total += label.size(0)
@@ -65,7 +62,7 @@ def train():
         train_loss = running_loss / len(train_loader)
         train_acc = 100 * correct / total
 
-        # --- FASE DE EVALUACIÓN ---
+        # Fase de evaluación
         model.eval()
         test_correct = 0
         test_total = 0
@@ -84,20 +81,29 @@ def train():
         test_acc = 100 * test_correct / test_total
         elapsed = time.time() - t0
 
-        # --- REPORTE ---
-        marker = ""
-        if test_acc > best_acc:
+        is_best = test_acc > best_acc
+        if is_best:
             best_acc = test_acc
-            torch.save(model.state_dict(), "mejor_modelo.pth")
-            marker = " << mejor modelo guardado"
+            torch.save(model.state_dict(), best_path)
 
+        if (epoch + 1) % SAVE_EVERY == 0:
+            torch.save(model.state_dict(), checkpoint_path)
+
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"{epoch+1},{train_loss:.4f},{train_acc:.2f},{test_acc:.2f},{elapsed:.1f},{'si' if is_best else 'no'}\n")
+
+        marker = " << mejor" if is_best else ""
         print(f"Época {epoch+1:>2}/{EPOCHS} | "
               f"Loss: {train_loss:.4f} | "
               f"Train: {train_acc:.1f}% | "
               f"Test: {test_acc:.1f}% | "
               f"{elapsed:.1f}s{marker}")
 
-    print(f"\nEntrenamiento finalizado. Mejor precisión en Test: {best_acc:.1f}%")
+    torch.save(model.state_dict(), last_path)
+
+    print(f"\nEntrenamiento finalizado.")
+    print(f"  Mejor precisión en Test: {best_acc:.1f}%")
+    print(f"  Archivos guardados en: {os.path.abspath(OUTPUT_DIR)}/")
 
 
 if __name__ == '__main__':
