@@ -3,3 +3,4 @@ venv/
 *.pth
 GuitarSet/3371780/
 .vscode/*
+GuitarSet/processed/
