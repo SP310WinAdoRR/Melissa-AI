@@ -10,13 +10,18 @@ import torch.optim as optim
 from model import ChordCNN
 
 # Configuración de hardware
-if torch.cuda.is_available():
-    DEVICE = torch.device("cuda")
+CUDA_AVAILABLE = torch.cuda.is_available()
+DEVICE = torch.device("cuda" if CUDA_AVAILABLE else "cpu")
+
+if CUDA_AVAILABLE:
+    torch.backends.cudnn.benchmark = True
     print(f"GPU detectada: {torch.cuda.get_device_name(0)}")
     print(f"Memoria disponible: {torch.cuda.get_device_properties(0).total_memory / (1024**3):.1f} GB")
 else:
-    DEVICE = torch.device("cpu")
-    print("No se detectó GPU. Entrenando en CPU.")
+    if torch.version.cuda is None:
+        print("PyTorch instalado es CPU-only; no se puede usar GPU en este entorno.")
+    else:
+        print("No se detectó GPU. Entrenando en CPU.")
 
 # Hiperparámetros del modelo y entrenamiento
 BATCH_SIZE = 64       # Tamaño del lote de datos (batch size)
@@ -34,7 +39,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def build_model():
     """Construye el modelo, la función de pérdida y el optimizador."""
     torch.manual_seed(SEED)
-    if torch.cuda.is_available():
+    if CUDA_AVAILABLE:
         torch.cuda.manual_seed(SEED)
 
     model = ChordCNN(num_classes=NUM_CLASSES).to(DEVICE)

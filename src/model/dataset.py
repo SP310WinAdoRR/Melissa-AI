@@ -45,7 +45,9 @@ def get_loaders(batch_size=64):
     train_dataset = MelissaDataset(train_path)
     test_dataset = MelissaDataset(test_path)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    pin_memory = torch.cuda.is_available()
+
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=pin_memory)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, pin_memory=pin_memory)
 
     return train_loader, test_loader

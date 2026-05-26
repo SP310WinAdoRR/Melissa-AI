@@ -1,7 +1,9 @@
 __pycache__/
-venv/
+.venv/
 *.pth
 GuitarSet/3371780/
 .vscode/*
 GuitarSet/processed/
 output/
+*.zip
+.venv-cpu/

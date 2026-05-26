@@ -8,19 +8,24 @@ Ejecutar desde la terminal:
 
 import os
 import time
+from typing import cast
+
 import torch
 
 from config import build_model, DEVICE, BATCH_SIZE, EPOCHS, SAVE_EVERY, OUTPUT_DIR
-from dataset import get_loaders
+from dataset import MelissaDataset, get_loaders
 
 
 def train():
     print("Cargando datasets...")
     train_loader, test_loader = get_loaders(batch_size=BATCH_SIZE)
-    print(f"  Train: {len(train_loader.dataset)} muestras ({len(train_loader)} batches)")
-    print(f"  Test:  {len(test_loader.dataset)} muestras ({len(test_loader)} batches)")
+    train_dataset = cast(MelissaDataset, train_loader.dataset)
+    test_dataset = cast(MelissaDataset, test_loader.dataset)
+    print(f"  Train: {len(train_dataset)} muestras ({len(train_loader)} batches)")
+    print(f"  Test:  {len(test_dataset)} muestras ({len(test_loader)} batches)")
 
     model, criterion, optimizer = build_model()
+    transfer_kwargs = {"non_blocking": True} if DEVICE.type == "cuda" else {}
 
     checkpoint_path = os.path.join(OUTPUT_DIR, "checkpoint.pth")
     best_path = os.path.join(OUTPUT_DIR, "mejor_modelo.pth")
@@ -44,9 +49,9 @@ def train():
         total = 0
 
         for spec, aux, label in train_loader:
-            spec = spec.to(DEVICE)
-            aux = aux.to(DEVICE)
-            label = label.to(DEVICE)
+            spec = spec.to(DEVICE, **transfer_kwargs)
+            aux = aux.to(DEVICE, **transfer_kwargs)
+            label = label.to(DEVICE, **transfer_kwargs)
 
             optimizer.zero_grad()
             outputs = model(spec, aux)
@@ -69,9 +74,9 @@ def train():
 
         with torch.no_grad():
             for spec, aux, label in test_loader:
-                spec = spec.to(DEVICE)
-                aux = aux.to(DEVICE)
-                label = label.to(DEVICE)
+                spec = spec.to(DEVICE, **transfer_kwargs)
+                aux = aux.to(DEVICE, **transfer_kwargs)
+                label = label.to(DEVICE, **transfer_kwargs)
 
                 outputs = model(spec, aux)
                 _, predicted = torch.max(outputs, 1)
